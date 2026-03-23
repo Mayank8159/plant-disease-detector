@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
 try:
@@ -16,9 +17,20 @@ except ImportError:
 MODEL_PATH = os.getenv("MODEL_PATH", "model.tflite")
 LABELS_PATH = os.getenv("LABELS_PATH", "labels.txt")
 IMAGE_SIZE: Tuple[int, int] = (224, 224)
-CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.70"))
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.65"))
 
 app = FastAPI(title="Plant Disease Detector API")
+
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _interpreter: Interpreter | None = None
 _input_details = None
