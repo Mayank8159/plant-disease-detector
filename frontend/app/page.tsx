@@ -36,7 +36,10 @@ type NextStepAdvice = {
 };
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+  (process.env.NODE_ENV === "production"
+    ? "https://plant-disease-detector-tmla.onrender.com"
+    : "http://127.0.0.1:8000");
 const HISTORY_STORAGE_KEY = "plant-detector-history";
 const HISTORY_LIMIT = 10;
 
