@@ -163,6 +163,7 @@ export default function Home() {
 
   useEffect(() => {
     let isMounted = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
     async function checkHealth() {
       try {
@@ -179,8 +180,13 @@ export default function Home() {
     }
 
     checkHealth();
+    intervalId = setInterval(checkHealth, 50_000);
+
     return () => {
       isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, []);
 
