@@ -5,7 +5,12 @@ from typing import List, Tuple
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from PIL import Image, UnidentifiedImageError
-from tflite_runtime.interpreter import Interpreter
+
+try:
+    from tflite_runtime.interpreter import Interpreter
+except ImportError:
+    # Windows often lacks tflite-runtime wheels; use TensorFlow Lite interpreter as fallback.
+    from tensorflow.lite.python.interpreter import Interpreter
 
 
 MODEL_PATH = os.getenv("MODEL_PATH", "model.tflite")
@@ -97,9 +102,21 @@ def _infer(image_batch: np.ndarray) -> Tuple[int, float, np.ndarray]:
         interpreter.invoke()
         output = interpreter.get_tensor(output_info["index"])
 
-    scores = np.squeeze(output)
+    scores = np.squeeze(output).astype(np.float32, copy=False)
+    out_scale, out_zero_point = output_info.get("quantization", (0.0, 0))
+    if out_scale and out_scale > 0:
+        scores = (scores - float(out_zero_point)) * float(out_scale)
+
     if scores.ndim != 1:
         scores = scores.reshape(-1)
+
+    if scores.max() > 1.0 or scores.min() < 0.0:
+        # If the model output is logits, convert to probabilities.
+        shifted = scores - np.max(scores)
+        exp_scores = np.exp(shifted)
+        denom = np.sum(exp_scores)
+        if denom > 0:
+            scores = exp_scores / denom
 
     top_idx = int(np.argmax(scores))
     top_conf = float(scores[top_idx])
