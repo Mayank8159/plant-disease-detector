@@ -32,3 +32,5 @@ If you create the service manually:
 - Keep `num_threads=1` in interpreter (already configured).
 - Avoid adding full TensorFlow in requirements to stay memory-light.
 - If your frontend domain changes, update `ALLOWED_ORIGINS` and redeploy.
+- Cron keepalive is intentionally removed from `render.yaml` to avoid free-plan cron limits.
+- Frontend now shows a wake countdown while backend is sleeping and retries health checks automatically.

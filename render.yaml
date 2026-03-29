@@ -17,17 +17,3 @@ services:
         value: "0.65"
       - key: ALLOWED_ORIGINS
         value: "http://localhost:3000,http://127.0.0.1:3000,https://plant-disease-detector-topaz.vercel.app"
-
-  - type: cron
-    name: plant-disease-detector-keepalive
-    runtime: python
-    plan: free
-    rootDir: backend
-    schedule: "*/1 * * * *"
-    buildCommand: pip install --upgrade pip
-    startCommand: python keepalive_ping.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: HEALTHCHECK_URL
-        value: "https://plant-disease-detector-tmla.onrender.com/health"

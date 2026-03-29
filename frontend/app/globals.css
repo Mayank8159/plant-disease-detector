@@ -206,6 +206,17 @@ body::after {
   gap: 18px;
 }
 
+.wake-timer {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 236, 176, 0.52);
+  background: linear-gradient(140deg, rgba(255, 227, 143, 0.16), rgba(141, 201, 171, 0.1));
+  color: #fff0c9;
+  font-size: 0.88rem;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.32);
+}
+
 .panel {
   border-radius: 22px;
   padding: clamp(14px, 2vw, 20px);

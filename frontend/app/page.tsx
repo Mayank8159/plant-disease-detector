@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type PredictionResponse = {
   prediction: string;
@@ -42,6 +42,8 @@ const API_BASE_URL =
     : "http://127.0.0.1:8000");
 const HISTORY_STORAGE_KEY = "plant-detector-history";
 const HISTORY_LIMIT = 10;
+const OFFLINE_WAKE_CHECK_SECONDS = 60;
+const ONLINE_HEALTH_POLL_MS = 50_000;
 
 function toReadableLabel(value: string): string {
   return value
@@ -130,6 +132,7 @@ async function dataUrlToFile(dataUrl: string, fileName: string, mimeType = "imag
 
 export default function Home() {
   const [health, setHealth] = useState<"checking" | "online" | "offline">("checking");
+  const [wakeCountdown, setWakeCountdown] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResponse | null>(null);
@@ -161,34 +164,58 @@ export default function Home() {
     }
   }, [history]);
 
-  useEffect(() => {
-    let isMounted = true;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    async function checkHealth() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
-        if (!isMounted) {
-          return;
-        }
-        setHealth(response.ok ? "online" : "offline");
-      } catch {
-        if (isMounted) {
-          setHealth("offline");
-        }
+  const checkHealth = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
+      if (response.ok) {
+        setHealth("online");
+        setWakeCountdown(null);
+        return;
       }
+      setHealth("offline");
+      setWakeCountdown((previous) => previous ?? OFFLINE_WAKE_CHECK_SECONDS);
+    } catch {
+      setHealth("offline");
+      setWakeCountdown((previous) => previous ?? OFFLINE_WAKE_CHECK_SECONDS);
     }
+  }, []);
 
-    checkHealth();
-    intervalId = setInterval(checkHealth, 50_000);
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      void checkHealth();
+    }, ONLINE_HEALTH_POLL_MS);
+
+    void checkHealth();
 
     return () => {
-      isMounted = false;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [checkHealth]);
+
+  useEffect(() => {
+    if (health !== "offline") {
+      return;
+    }
+
+    const countdownId = setInterval(() => {
+      setWakeCountdown((previous) => {
+        if (previous === null) {
+          return OFFLINE_WAKE_CHECK_SECONDS;
+        }
+
+        if (previous <= 1) {
+          void checkHealth();
+          return OFFLINE_WAKE_CHECK_SECONDS;
+        }
+
+        return previous - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(countdownId);
+    };
+  }, [checkHealth, health]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0] ?? null;
@@ -357,9 +384,15 @@ export default function Home() {
             <span className="status-dot" />
             {health === "checking" && "Checking backend"}
             {health === "online" && "Backend online"}
-            {health === "offline" && "Backend offline"}
+            {health === "offline" && "Backend sleeping"}
           </div>
         </header>
+
+        {health === "offline" && wakeCountdown !== null && (
+          <p className="wake-timer" aria-live="polite">
+            Wake check in {wakeCountdown}s. Render free web services can take around 30-90 seconds to wake.
+          </p>
+        )}
 
         <section className="console-grid">
           <form className="panel panel-lifted" onSubmit={handlePredict}>
