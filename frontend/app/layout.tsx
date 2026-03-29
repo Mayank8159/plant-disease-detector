@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Plant Disease Detector",
-  description: "Skeuomorphic plant disease detection interface powered by FastAPI and TFLite",
+  description: "Liquid-glass plant disease detection interface powered by FastAPI and TFLite",
 };
 
 export default function RootLayout({
