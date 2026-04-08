@@ -80,21 +80,28 @@ def _preprocess_image(upload: UploadFile) -> np.ndarray:
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Invalid image file") from exc
 
-    arr /= 255.0
     arr = np.expand_dims(arr, axis=0)
     return arr
 
 
 def _prepare_input_for_model(image_batch: np.ndarray, input_info: dict) -> np.ndarray:
     expected_dtype = input_info["dtype"]
+
+    # Heuristic: quantized models with very small real range (for example 0..1)
+    # expect normalized pixels, while larger ranges expect raw 0..255 pixels.
+    normalized_batch = image_batch / 255.0
+
     if expected_dtype == np.float32:
         return image_batch.astype(np.float32, copy=False)
 
     scale, zero_point = input_info.get("quantization", (0.0, 0))
+    real_range = float(scale) * 255.0 if scale else 0.0
+    source_batch = normalized_batch if 0.0 < real_range <= 2.0 else image_batch
+
     if scale and scale > 0:
-        quantized = np.round((image_batch / scale) + zero_point)
+        quantized = np.round((source_batch / scale) + zero_point)
     else:
-        quantized = np.round(image_batch * 255.0)
+        quantized = np.round(source_batch)
 
     if expected_dtype == np.uint8:
         return np.clip(quantized, 0, 255).astype(np.uint8, copy=False)
@@ -102,7 +109,7 @@ def _prepare_input_for_model(image_batch: np.ndarray, input_info: dict) -> np.nd
     if expected_dtype == np.int8:
         return np.clip(quantized, -128, 127).astype(np.int8, copy=False)
 
-    return image_batch.astype(expected_dtype, copy=False)
+    return source_batch.astype(expected_dtype, copy=False)
 
 
 def _infer(image_batch: np.ndarray) -> Tuple[int, float, np.ndarray]:

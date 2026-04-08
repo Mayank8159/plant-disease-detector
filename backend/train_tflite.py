@@ -106,7 +106,7 @@ def representative_dataset(data_dir: Path, img_size: int, limit: int = 200):
     for img_path in image_files:
         image = tf.keras.utils.load_img(img_path, target_size=(img_size, img_size))
         array = tf.keras.utils.img_to_array(image)
-        array = np.expand_dims(array, axis=0).astype(np.float32) / 255.0
+        array = np.expand_dims(array, axis=0).astype(np.float32)
         yield [array]
 
 
